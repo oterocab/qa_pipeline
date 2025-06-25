@@ -1,0 +1,59 @@
+hn_mine:
+  embedder_name_or_path: BAAI/bge-small-en
+  input_file: data/train/input_train_data.jsonl
+  output_file: data/train/bge_reranker_base/input_train_data_minedHN_rerank.jsonl
+  negative_number: 10
+  range_for_sampling: 2-100
+  devices: cuda
+  batch_size : 4
+  use_gpu_for_searching: false
+
+score_ranking:
+  input_file: data/train/bge_reranker_base/input_train_data_minedHN_rerank.jsonl
+  output_file: data/train/bge_reranker_base/input_train_data_score_rerank.jsonl
+  reranker_name_or_path: BAAI/bge-reranker-base
+  devices: cuda:0
+  use_fp16: true
+  trust_remote_code: true
+  reranker_model_class: encoder-only-base
+  query_instruction_for_rerank: "Represent this biomedical question for retrieving relevant PubMed snippets: "
+  query_instruction_format_for_rerank: "{}\n{}"
+  passage_instruction_for_rerank: "Snippet: "
+  passage_instruction_format_for_rerank: "{}\n{}"
+  cache_dir: models/cache/model
+  reranker_batch_size: 4
+  reranker_query_max_length: 64
+  reranker_max_length: 448
+  prompt: "Represent this biomedical question for retrieving relevant PubMed snippets: "
+
+fine_tune:
+  script: FlagEmbedding.finetune.reranker.encoder_only.base
+  model_name_or_path: BAAI/bge-reranker-base
+  cache_dir: models/cache/model
+  cache_path: models/cache/data
+  output_dir: models/fine-tuned/bge_reranker_base
+  train_data:
+    - data/train/bge_reranker_base/input_train_data_score.jsonl
+  train_group_size: 2
+  query_max_len: 64
+  passage_max_len: 448
+  pad_to_multiple_of: 8
+  overwrite_output_dir: true
+  learning_rate: 3e-5
+  fp16: true
+  num_train_epochs: 5
+  knowledge_distillation: true
+  per_device_train_batch_size: 4
+  dataloader_drop_last: true
+  warmup_ratio: 0.1
+  max_grad_norm: 10
+  gradient_checkpointing: true
+  deepspeed: models/FlagEmbedding/ds_stage0.json
+  logging_steps: 100
+  save_steps: 1000
+
+
+
+
+
+

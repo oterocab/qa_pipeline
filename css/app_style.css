@@ -1,0 +1,87 @@
+/* Global layout */
+body {
+    background-color: #f6f9fc;
+    font-family: 'Segoe UI', sans-serif;
+}
+
+/* Main content container */
+.block-container {
+    padding: 2rem 2.5rem;
+    max-width: 100%;
+}
+
+/* Headings */
+h1, h2, h3 {
+    color: #173b6c;
+    font-weight: 600;
+}
+
+/* Sidebar */
+section[data-testid="stSidebar"] {
+    background-color: #eef4fc;
+    padding: 1.5rem;
+    border-right: 1px solid #d6e4f0;
+}
+
+section[data-testid="stSidebar"] .stSelectbox,
+section[data-testid="stSidebar"] .stSlider,
+section[data-testid="stSidebar"] .stCheckbox {
+    background-color: #fff;
+    border-radius: 10px;
+    padding: 0.5rem;
+}
+
+/* Buttons */
+button[kind="primary"] {
+    background-color: #2563eb !important;
+    color: white !important;
+    border-radius: 10px;
+    padding: 0.5rem 1rem;
+    font-weight: bold;
+    transition: 0.2s ease-in-out;
+}
+button[kind="primary"]:hover {
+    background-color: #1e4ed8 !important;
+}
+
+/* Panel card styles */
+.panel-card {
+    background-color: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    border-left: 5px solid #2563eb;
+}
+
+/* Metric display */
+.element-container:has(.stMetric) {
+    background-color: #e8f0fe;
+    border-radius: 10px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    text-align: center;
+}
+
+/* Chart spacing */
+.stPlotlyChart {
+    margin-top: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+
+/* Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+::-webkit-scrollbar-thumb {
+    background-color: #ccc;
+    border-radius: 10px;
+}
+
+/* Fix unwanted top padding or block artifacts */
+[data-testid="stHorizontalBlock"] > div:first-child {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+    box-shadow: none !important;
+}

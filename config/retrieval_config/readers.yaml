@@ -1,0 +1,12 @@
+readers:
+  OpenAI:
+    - name: "gpt-4o"
+      model: "gpt-4o"
+      temperature: 0
+    - name: "gpt-3.5-turbo"
+      model_name: "gpt-3.5-turbo"
+      temperature: 0
+  Anthropic:
+    - name: "claude-3-sonnet"
+      model: "claude-3-5-sonnet-20240620"
+      temperature: 0

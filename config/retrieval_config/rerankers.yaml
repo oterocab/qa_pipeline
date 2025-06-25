@@ -1,0 +1,14 @@
+rerankers:
+  fine-tuned:
+    - name: bge_reranker_base
+      model_name_or_path: ./models/fine-tuned/bge_reranker_base/checkpoint-1000
+      cache_dir: ./models/cache/model
+      model_class: encoder-only-base
+
+  FlagEmbedding:
+    - name: BAAI/bge-reranker-v2-m3
+      model_name_or_path: BAAI/bge-reranker-v2-m3
+      cache_dir: ./models/cache/model
+    - name: BAAI/bge-reranker-base
+      model_name_or_path: BAAI/bge-reranker-base
+      cache_dir: ./models/cache/model

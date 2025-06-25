@@ -1,0 +1,88 @@
+hn_mine:
+  input_file: data/train/input_train_data.jsonl
+  output_file: data/train/bge_small_en_v15/input_train_data_minedHN.jsonl
+  negative_number: 10
+  range_for_sampling: 2-200
+  candidate_pool: null
+  use_gpu_for_searching: false
+  search_batch_size: 64
+  embedder_name_or_path: BAAI/bge-small-en-v1.5
+  embedder_model_class: encoder-only-base
+  normalize_embeddings: true
+  pooling_method: cls
+  use_fp16: true
+  devices: cuda:0
+  query_instruction_for_retrieval: "Represent this biomedical question for retrieving relevant passages: "
+  query_instruction_format_for_retrieval: "{}"
+  examples_for_task: null
+  examples_instruction_format: null
+  trust_remote_code: true
+  cache_dir: models/FlagEmbedding/cache/model
+  batch_size: 8
+  embedder_query_max_length: 64
+  embedder_passage_max_length: 448
+
+score_ranking:
+  input_file: data/train/bge_small_en_v15/input_train_data_minedHN.jsonl
+  output_file: data/train/bge_small_en_v15/input_train_data_score.jsonl
+  reranker_name_or_path: BAAI/bge-reranker-base
+  devices: cuda:0
+  use_fp16: true
+  use_bf16: false
+  trust_remote_code: true
+  reranker_model_class: encoder-only-base
+  reranker_peft_path: null
+  query_instruction_for_rerank: "Represent this biomedical question for retrieving relevant PubMed snippets: "
+  query_instruction_format_for_rerank: "{}\n{}"
+  passage_instruction_for_rerank: "Snippet: "
+  passage_instruction_format_for_rerank: "{}\n{}"
+  cache_dir: models/cache/model
+  reranker_batch_size: 4
+  reranker_query_max_length: 64
+  reranker_max_length: 448
+  normalize: false
+  prompt: "Represent this biomedical question for retrieving relevant PubMed snippets: "
+  cutoff_layers: null
+  compress_ratio: 1
+  compress_layers: null
+
+fine_tune:
+  script: FlagEmbedding.finetune.embedder.encoder_only.base
+  model_name_or_path: BAAI/bge-small-en-v1.5
+  cache_dir: models/cache/model
+  cache_path: models/cache/model/data
+  output_dir: models/fine-tuned/bge-small-en-v15
+  train_data:
+    - data/train/bge_small_en_v15/input_train_data_score.jsonl
+  train_group_size: 2
+  query_max_len: 64
+  passage_max_len: 448
+  pad_to_multiple_of: 8
+  max_example_num_per_dataset: null
+  query_instruction_for_retrieval: "Represent this biomedical question for retrieving relevant PubMed snippets: "
+  query_instruction_format: "{}{}"
+  passage_instruction_for_retrieval: null
+  passage_instruction_format: null
+  knowledge_distillation: true
+  shuffle_ratio: null
+  same_dataset_within_batch: true
+  small_threshold: 0
+  drop_threshold: 0
+  negatives_cross_device: true
+  temperature: 0.02
+  fix_position_embedding: false
+  sentence_pooling_method: cls
+  normalize_embeddings: true
+  sub_batch_size: null
+  kd_loss_type: kl_div
+  overwrite_output_dir: true
+  learning_rate: 1e-5
+  fp16: true
+  num_train_epochs: 2
+  per_device_train_batch_size: 8
+  dataloader_drop_last: true
+  warmup_ratio: 0.1
+  gradient_checkpointing: true
+  deepspeed: models/FlagEmbedding/ds_stage0.json
+  logging_steps: 100
+  save_steps: 1000

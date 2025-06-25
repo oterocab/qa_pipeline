@@ -1,0 +1,64 @@
+embedders:
+  fine-tuned:
+    - name: bge_small_en
+      store_table: bge_small_en_embeddings
+      model_config:
+        device: cuda
+        use_meta: false
+        trust_remote_code: true
+        model_name_or_path: ./models/fine-tuned/bge_small_en
+        cache_dir: ./models/cache/model
+        model_class: encoder-only-base
+      text_splitter_config:
+        chunk_size: 400
+        chunk_overlap: 50
+        separators: ["\n\n", "\n", ". ", " ", ""]
+
+    - name: bge_small_en_token_split
+      store_table: bge_small_en_embeddings_token_split
+      model_config:
+        device: cuda
+        use_meta: false
+        trust_remote_code: true
+        model_name_or_path: ./models/fine-tuned/bge_small_en
+        cache_dir: ./models/cache/model
+        model_class: encoder-only-base
+      text_splitter_config:
+        chunk_size: 400
+        chunk_overlap: 50
+        tokenizer_name: bert-base-uncased
+
+  FlagEmbedding:
+    - name: bge_small_en
+      store_table: flag_bge_small_en_embeddings
+      model_config:
+        device: cuda
+        use_meta: false
+        trust_remote_code: true
+        model_name_or_path: BAAI/bge-small-en
+        cache_dir: ./models/cache/model
+        model_class: encoder-only-base
+      text_splitter_config:
+        chunk_size: 400
+        chunk_overlap: 50
+        separators: ["\n\n", "\n", ". ", " ", ""]
+
+  OpenAI:
+   - name: text-embedding-3-small
+     store_table: openai_text_embedding_3_small
+     model_config:
+      provider_name: OpenAI
+      model: "text-embedding-3-small"
+     text_splitter_config:
+        chunk_size: 400
+        chunk_overlap: 50
+        separators: ["\n\n", "\n", ". ", " ", ""]
+
+  PostgresqlFTS:
+   - name: fts
+     store_table: postgres_fts
+     text_splitter_config:
+        chunk_size: 400
+        chunk_overlap: 50
+        separators: ["\n\n", "\n", ". ", " ", ""]
+     
