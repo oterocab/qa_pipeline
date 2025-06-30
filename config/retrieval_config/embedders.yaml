@@ -1,58 +1,103 @@
 embedders:
-  fine-tuned:
-    - name: bge_small_en
-      store_table: bge_small_en_embeddings
-      model_config:
-        device: cuda
-        use_meta: false
-        trust_remote_code: true
-        model_name_or_path: ./models/fine-tuned/bge_small_en
-        cache_dir: ./models/cache/model
-        model_class: encoder-only-base
-      text_splitter_config:
-        chunk_size: 400
-        chunk_overlap: 50
-        separators: ["\n\n", "\n", ". ", " ", ""]
-
-    - name: bge_small_en_token_split
-      store_table: bge_small_en_embeddings_token_split
-      model_config:
-        device: cuda
-        use_meta: false
-        trust_remote_code: true
-        model_name_or_path: ./models/fine-tuned/bge_small_en
-        cache_dir: ./models/cache/model
-        model_class: encoder-only-base
-      text_splitter_config:
-        chunk_size: 400
-        chunk_overlap: 50
-        tokenizer_name: bert-base-uncased
-
   FlagEmbedding:
-    - name: bge_small_en
-      store_table: flag_bge_small_en_embeddings
-      model_config:
-        device: cuda
-        use_meta: false
-        trust_remote_code: true
-        model_name_or_path: BAAI/bge-small-en
-        cache_dir: ./models/cache/model
-        model_class: encoder-only-base
-      text_splitter_config:
-        chunk_size: 400
-        chunk_overlap: 50
-        separators: ["\n\n", "\n", ". ", " ", ""]
+      - name: bge_small_en_hnsw
+        store_table: bge_small_en_hnsw
+        embedding_dim: 384
+        model_config:
+          device: cuda
+          use_meta: false
+          trust_remote_code: true
+          use_fp16: true
+          model_name_or_path: BAAI/bge-small-en
+          cache_dir: ./models/cache/model
+          model_class: encoder-only-base
+        text_splitter_config:
+          chunk_size: 400
+          chunk_overlap: 50
+          separators: ["\n\n", "\n", ". ", "? ", "! ", "; "]
+        index_config:
+          name: hnsw
+          m: 16
+          ef_construction: 64
+          ef_search: 40
+      - name: bge_m3_hnsw
+        store_table: src_bge_m3_hnsw
+        embedding_dim: 1024
+        model_config:
+          device: cuda
+          use_meta: false
+          trust_remote_code: true
+          use_fp16: true
+          model_name_or_path: BAAI/bge-m3
+          cache_dir: ./models/cache/model
+          model_class: encoder-only-base
+        text_splitter_config:
+          chunk_size: 400
+          chunk_overlap: 50
+          separators: ["\n\n", "\n", ". ", "? ", "! ", "; "]
+        index_config:
+          name: hnsw
+          m: 16
+          ef_construction: 64
+          ef_search: 40
+      - name: bge_base_en_hnsw
+        store_table: bge_base_en_hnsw
+        embedding_dim: 768
+        model_config:
+          device: cuda
+          use_meta: false
+          show_progress_bar: false
+          trust_remote_code: true
+          use_fp16: true
+          model_name_or_path: BAAI/bge-base-en
+          cache_dir: ./models/cache/model
+          model_class: encoder-only-base
+        text_splitter_config:
+          chunk_size: 400
+          chunk_overlap: 50
+          separators: ["\n\n", "\n", ". ", "? ", "! ", "; "]
+        index_config:
+          name: hnsw
+          m: 32
+          ef_construction: 200
+          ef_search: 64
+      - name: bge_small_en_v15_hnsw
+        store_table: bge_small_en_v15_hnsw
+        embedding_dim: 384
+        model_config:
+          device: cuda
+          use_meta: false
+          trust_remote_code: true
+          use_fp16: true
+          model_name_or_path: BAAI/bge-small-en-v1.5
+          cache_dir: ./models/cache/model
+          model_class: encoder-only-base
+        text_splitter_config:
+          chunk_size: 400
+          chunk_overlap: 50
+          separators: ["\n\n", "\n", ". ", "? ", "! ", "; "]
+        index_config:
+          name: hnsw
+          m: 16
+          ef_construction: 64
+          ef_search: 40
 
   OpenAI:
-   - name: text-embedding-3-small
-     store_table: openai_text_embedding_3_small
+   - name: text-embedding-3-small_ivff
+     store_table: openai_text_embedding_3_small_ivff
+     embedding_dim: 1536
      model_config:
       provider_name: OpenAI
       model: "text-embedding-3-small"
      text_splitter_config:
         chunk_size: 400
         chunk_overlap: 50
-        separators: ["\n\n", "\n", ". ", " ", ""]
+        separators: ["\n\n", "\n", ". ", "? ", "! ", "; "]
+     index_config:
+        name: hnsw
+        m: 16
+        ef_construction: 64
+        ef_search: 40
 
   PostgresqlFTS:
    - name: fts
@@ -60,5 +105,5 @@ embedders:
      text_splitter_config:
         chunk_size: 400
         chunk_overlap: 50
-        separators: ["\n\n", "\n", ". ", " ", ""]
+        separators: ["\n\n", "\n", ". ", "? ", "! ", "; "]
      

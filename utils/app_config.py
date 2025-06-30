@@ -26,6 +26,8 @@ class BaseAppConfig:
         self._tokenizer_config: Optional[Dict[str, Any]] = None
         self._ncbi_api_key:str = None
         self._evaluator_llm_name: str = None
+        self._evaluation_files_dir: str = None
+        self._corpus_table: str = None
         self.logger = logger if logger else logging.getLogger(__name__)
     
     @property
@@ -109,6 +111,18 @@ class BaseAppConfig:
         if self._evaluator_llm_name is None:
             self._evaluator_llm_name = os.getenv('EVALUATOR_LLM_NAME')
         return self._evaluator_llm_name
+    
+    @property
+    def evaluation_files_dir(self) -> str:
+        if self._evaluation_files_dir is None:
+            self._evaluation_files_dir = os.getenv('EVALUATION_FILES_DIR')
+        return self._evaluation_files_dir
+    
+    @property
+    def corpus_table(self) -> str:
+        if self._corpus_table is None:
+            self._corpus_table = os.getenv('CORPUS_TABLE_NAME', "documents")
+        return self._corpus_table
 
 
     def _get_env(self, key: str, default: Optional[str] = None) -> str:

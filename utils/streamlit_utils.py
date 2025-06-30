@@ -9,6 +9,7 @@ def load_css(file_path: str):
     """
     Load custom CSS from a file into Streamlit.
     """
+    st.set_page_config(layout="wide")
     if os.path.exists(file_path):
         with open(file_path, "r") as f:
             css = f"<style>{f.read()}</style>"

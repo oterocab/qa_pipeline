@@ -1,4 +1,5 @@
 import pandas as pd
+from statistics import mean
 import math
 import json
 
@@ -44,6 +45,7 @@ def compute_metrics_from_ranks(ranks, k, total_relevant):
             f"MRR@{k}": 0,
             f"Recall@{k}": 0,
             f"Precision@{k}": 0,
+            f"F1@{k}": 0,
             f"nDCG@{k}": 0
         }
 
@@ -56,17 +58,19 @@ def compute_metrics_from_ranks(ranks, k, total_relevant):
     dcg = sum(1 / math.log2(r + 2) for r in hits_at_k)
     idcg = sum(1 / math.log2(i + 2) for i in range(min(total_relevant, k)))
     ndcg = dcg / idcg if idcg > 0 else 0
+    f1 = (2 * precision * recall / (precision + recall)) if (precision + recall) > 0 else 0
 
     return {
         f"MRR@{k}": mrr,
         f"Recall@{k}": recall,
         f"Precision@{k}": precision,
+        f"F1@{k}": f1,
         f"nDCG@{k}": ndcg
     }
 
 def evaluate_retriever_from_evaldata(retriever, eval_file_path: str, ks=(5, 10, 15), top_k=100, 
                                      rerank_top_k=30, use_rerank=True, overlap_threshold=0.5, 
-                                     fts_search: bool = False, max_workers: int = 10):
+                                     fts_search: bool = False, max_workers: int = 1):
     
     results = []
 
@@ -77,21 +81,29 @@ def evaluate_retriever_from_evaldata(retriever, eval_file_path: str, ks=(5, 10, 
     queries = [q["body"] for q in questions]
     snippets_list = [q.get("snippets", []) for q in questions]
 
-    batch_docs = retriever.get_top_k_docs_batch(queries=queries, top_k=top_k, fts_search=fts_search, max_workers=max_workers)
-
+    batch_docs, batch_retrieval_latencies = retriever.get_top_k_docs_batch(queries=queries, top_k=top_k, fts_search=fts_search, max_workers=max_workers)
+    batch_docs = [docs if docs is not None else [] for docs in batch_docs]
+    mean_rerank_lantecy = 0
     if use_rerank:
-        batch_docs = [
+        rerank_results = [
             retriever.rerank_top_k_docs(query, docs, rerank_top_k)
             for query, docs in zip(queries, batch_docs)
         ]
+        batch_docs = [result[0] for result in rerank_results]
+        batch_rerank_latencies = [result[1] for result in rerank_results]
+        mean_rerank_lantecy = mean(batch_rerank_latencies)
 
+    metric_names = [f"{metric}@{k}"for k in ks
+                        for metric in ("MRR", "Recall", "Precision", "F1", "nDCG")]
     for query, snippets, docs in zip(queries, snippets_list, batch_docs):
         query_result = {
             "query": query,
-            "total_snippets": len(snippets)
+            "total_snippets": len(snippets),
+            **{m: 0 for m in metric_names},
+            #**{f"hits@{k}": 0 for k in ks}
         }
-
-        for k in ks:
+        available_ks = [k for k in ks if k <= len(docs)]
+        for k in available_ks:
             top_k_docs = docs[:k]
             ranks = []
             used_doc_ids = set()
@@ -108,8 +120,8 @@ def evaluate_retriever_from_evaldata(retriever, eval_file_path: str, ks=(5, 10, 
             for metric_name, value in metrics.items():
                 query_result[metric_name] = value
 
-            query_result[f"hits@{k}"] = len(ranks)
+            #query_result[f"hits@{k}"] = len(ranks)
 
         results.append(query_result)
 
-    return pd.DataFrame(results)
+    return pd.DataFrame(results), mean(batch_retrieval_latencies), mean_rerank_lantecy

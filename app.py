@@ -1,5 +1,6 @@
 import os
 import time
+import pandas as pd
 import streamlit as st
 import plotly.express as px
 from dotenv import load_dotenv
@@ -17,6 +18,7 @@ embedding_config = config.embedder_config
 reranker_config = config.reranker_config
 reader_config = config.reader_config
 evaluator_llm_name = config.evaluator_llm_name
+evaluation_files_dir = config.evaluation_files_dir
 
 # UI
 
@@ -25,7 +27,6 @@ st.sidebar.title("Model Selection")
 selected_embedder_config = get_component_config(embedding_config, "Embedder")
 selected_reranker_config = get_component_config(reranker_config, "Reranker")
 selected_reader_config, provider_name = get_component_config(reader_config, "Reader", include_provider=True)
-
 col_left, col_right = st.columns([3, 2])
 with col_left:
         st.title("QA Pipeline")
@@ -47,9 +48,7 @@ with col_left:
                 system_prompt = st.text_area(
                     "Sys Prompt",
                     value="""Answer the following question as precisely and concisely as possible. 
-                            Do not include context explanations, reasoning, jokes, or observations. 
-                            Respond with only the direct answer, in a single sentence or a short list if needed.
-                            If the context information is not enough to elaborate an answer, just say you don't know the answer.""",
+                             Only answer using the provided context.""",
                     key="sys_prompt"
                 )
 
@@ -57,10 +56,11 @@ with col_left:
         db_conn = get_db_conn(config.conn_config)
         retriever = get_retriever(
             db_conn,
+            "documents",
+            selected_embedder_config.get("store_table"),
             selected_embedder_config.get("model_config", None),
             selected_reranker_config,
-            corpus_table="documents",
-            store_table=selected_embedder_config.get("store_table"),
+            selected_embedder_config.get("index_config", {}),
             _hash_marker=dict_hash(selected_embedder_config) + dict_hash(selected_reranker_config)
         )
 
@@ -72,8 +72,8 @@ with col_left:
             st.session_state.use_reranking = use_reranking
 
             with st.spinner("Retrieving documents..."):
-                start_time = time.time()
-                docs = cached_retrieve_docs(_retriever=retriever,
+                
+                docs, db_latency, rerank_latency = cached_retrieve_docs(_retriever=retriever,
                                             query=query,
                                             top_k=top_k,
                                             rerank_top_k=rerank_top_k,
@@ -81,10 +81,15 @@ with col_left:
                                             embedder_config=selected_embedder_config.get("model_config", {}),
                                             reranker_config=selected_reranker_config,
                             )
+                start_time = time.time()
                 answer = reader.answer(query, docs[:max_context_docs])
-                end_time = time.time()
-                query_latency = end_time - start_time
-                st.session_state.query_latency = query_latency
+                answer_latency = time.time() - start_time
+                total_latency = db_latency + rerank_latency + answer_latency
+                st.session_state.answer_latency = answer_latency
+                st.session_state.db_latency = db_latency
+                st.session_state.rerank_latency = rerank_latency
+                st.session_state.total_latency = total_latency
+                
 
             # Into the cache
             st.session_state.docs = docs
@@ -94,8 +99,21 @@ with col_left:
         # Display the results when done!
         if st.session_state.get("search_ready", False):
             st.markdown(f"**Answer:** {st.session_state.answer}")
-            st.caption(f"Query latency: {st.session_state.query_latency:.2f} seconds")
+            latency_data = {
+                            "Stage": ["Retrieval", "Rerank", "Answer", "Total"],
+                            "Latency (s)": [
+                                round(st.session_state.db_latency, 3),
+                                round(st.session_state.rerank_latency, 3),
+                                round(st.session_state.answer_latency, 3),
+                                round(st.session_state.total_latency, 3)
+                            ]
+                        }
+            if st.session_state.rerank_latency == 0.0:
+                latency_data["Stage"].pop(1)
+                latency_data["Latency (s)"].pop(1)
 
+            st.table(pd.DataFrame(latency_data))
+            
             if st.session_state.docs and st.session_state.use_reranking and 'rerank_score' in st.session_state.docs[0]:
                 fig = px.scatter(
                     st.session_state.docs[:st.session_state.max_context_docs],
@@ -125,7 +143,7 @@ with col_left:
 with col_right:
         st.header("Evaluation")
         eval_mode = st.radio("Evaluation Mode", ["Retrieval Only", "End-to-End (RAGAS)"], horizontal=True)
-        eval_folder = "data/test/evaluation_files"
+        eval_folder = evaluation_files_dir
         eval_files = [f for f in os.listdir(eval_folder) if f.endswith(".json")]
 
         if eval_files:
@@ -146,7 +164,7 @@ with col_right:
 
                     if eval_mode == "Retrieval Only":
                         st.session_state.ragas_scores = None
-                        eval_df = evaluate_retriever_from_evaldata(
+                        eval_df, mean_retrieval_latency, mean_rerank_latency = evaluate_retriever_from_evaldata(
                             retriever=retriever,
                             eval_file_path=eval_path,
                             ks=ks,
@@ -160,6 +178,9 @@ with col_right:
                         avg_metrics = compute_avg_metrics_per_k(eval_df)
                         st.session_state.eval_results = eval_df
                         st.session_state.eval_avg = avg_metrics
+                        st.session_state.mean_retrieval_latency = mean_retrieval_latency
+                        st.session_state.mean_rerank_latency = mean_rerank_latency
+                        st.session_state.mean_total_lantecy = mean_retrieval_latency + mean_rerank_latency
                     else:
                         st.session_state.eval_results = None
                         st.session_state.eval_avg = None
@@ -182,7 +203,20 @@ with col_right:
 
             if eval_mode == "Retrieval Only" and st.session_state.eval_results is not None:
                 st.subheader("Mean Results")
-                st.caption(f"Evaluation latency: {st.session_state.eval_latency:.2f} seconds")
+                st.write(f"Evaluation duration {st.session_state.eval_latency:.2f}s")
+                latency_data = {
+                            "Stage": ["Retrieval", "Rerank", "Total"],
+                            "Latency (s)": [
+                                round(st.session_state.mean_retrieval_latency, 3),
+                                round(st.session_state.mean_rerank_latency, 3),
+                                round(st.session_state.mean_total_lantecy, 3)
+                            ]
+                        }
+                if st.session_state.mean_rerank_latency == 0.0:
+                    latency_data["Stage"].pop(1)
+                    latency_data["Latency (s)"].pop(1)
+                st.table(pd.DataFrame(latency_data))
+
                 st.write(st.session_state.eval_avg)
 
                 st.subheader("Metrics per Query")

@@ -27,17 +27,20 @@ def main(args) -> None:
     store_table = selected_embedder["store_table"]
     text_splitter_cfg = selected_embedder.get("text_splitter_config", {})
 
+    mode = "embedding" if selected_name != "fts" else "fts"
+
     db_conn = BasePostgreSQLConnectionHandler(config.conn_config)
 
     retriever = BaseDocumentRetriever(
         store_handler=db_conn,
-        embedding_config=selected_embedder.get("model_config") if args.mode == "embedding" else None,
+        embedding_config=selected_embedder.get("model_config") if mode != "fts" else None,
         corpus_table=args.corpus_table,
         store_table=store_table,
-        text_splitter_config=text_splitter_cfg
-    )
+        text_splitter_config=text_splitter_cfg,
+        embedding_dim=selected_embedder.get("embedding_dim"),
+        store_index_config=selected_embedder.get("index_config",{}))
 
-    retriever.index_documents(mode=args.mode, batch_size=args.batch_size)
+    retriever.index_documents(mode=mode, batch_size=args.batch_size, index_rebuild=args.index_rebuild, truncate_store=args.truncate_store)
 
 
 if __name__ == "__main__":
@@ -48,7 +51,8 @@ if __name__ == "__main__":
     parser.add_argument("--config", type=str, required=True, help="YAML config filename inside CONFIG_DIR.")
     parser.add_argument("--corpus_table", type=str, required=True, help="Name of the table containing raw documents.")
     parser.add_argument("--batch_size", type=int, default=500, help="Number of documents to process per batch.")
-    parser.add_argument("--mode", type=str, choices=["embedding", "fts"], default="embedding", help="Indexing mode: 'embedding' to compute vector embeddings, 'fts' to compute FTS vectors.")
+    parser.add_argument("--index_rebuild", action="store_true", help="Forces the index rebuild")
+    parser.add_argument("--truncate_store", action="store_true", help="Truncates store table before indexing docs")
 
 
     args = parser.parse_args()

@@ -1,6 +1,7 @@
 from FlagEmbedding import FlagAutoReranker
 from typing import List, Tuple
 from .base_reranker_model import BaseReranker
+import time
 
 class FlagEmbeddingReranker(BaseReranker):
     def __init__(self, **kwargs):
@@ -30,8 +31,9 @@ class FlagEmbeddingReranker(BaseReranker):
         """
         documents = documents
         texts = [doc["content"] for doc in documents]
+        start = time.time()
         scores = self.compute_scores(query, texts, **kwargs)
-
+        rerank_latency = time.time() - start
         reranked = []
         for doc, rerank_score in zip(documents, scores):
             reranked.append({
@@ -43,7 +45,7 @@ class FlagEmbeddingReranker(BaseReranker):
                 "beginoffset": doc["beginoffset"],
                 "endoffset": doc["endoffset"]
             })
-
-        return sorted(reranked, key=lambda x: x["rerank_score"], reverse=True)[:top_k]
+        
+        return sorted(reranked, key=lambda x: x["rerank_score"], reverse=True)[:top_k], rerank_latency
 
 

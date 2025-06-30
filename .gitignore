@@ -1,0 +1,15 @@
+venv/
+.venv/
+env/
+.env
+ENV/
+env.bak/
+venv.bak/
+.vscode/
+cache/
+__pycache__/
+FlagEmbedding/
+models/.
+!models/.gitkeep
+scripts/generate_eval_files.py
+scripts/retrieval_evaluation.py

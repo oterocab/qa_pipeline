@@ -1,9 +1,8 @@
 import json
-from datasets import Dataset
 from ragas.evaluation import EvaluationResult
 from ragas.metrics import answer_relevancy, faithfulness, context_precision
 from ragas.llms import llm_factory
-from ragas import evaluate
+from ragas import evaluate, SingleTurnSample, EvaluationDataset
 from dotenv import load_dotenv
 from retrievers.base_retriever import BaseDocumentRetriever
 from db_connectors.postgres_connection import BasePostgreSQLConnectionHandler
@@ -49,34 +48,30 @@ class RagasEvaluator():
         with open(evaluation_file_path, "r", encoding="utf-8") as f:
             data = json.load(f)["questions"]
 
-        ragas_records = []
+        ragas_samples = []
 
         for record in data:
             question = record["body"]
             ground_truths = record.get("ideal_answer", []) or record.get("exact_answer", [])
-            ground_truth = ground_truths[0] if ground_truths else ""
+            reference = ground_truths[0] if ground_truths else ""
 
             if not self.fts_search:
-                docs = self.retriever.get_top_k_docs(question, self.search_top_k)
+                docs,_ = self.retriever.get_top_k_docs(question, self.search_top_k)
             else:
-                docs = self.retriever.get_top_k_docs_fts(question, search_top_k=self.search_top_k)
+                docs,_ = self.retriever.get_top_k_docs_fts(question, search_top_k=self.search_top_k)
             
             if self.use_reranker:
-                docs = self.retriever.rerank_top_k_docs(question, docs, self.reranker_top_k)
+                docs, _ = self.retriever.rerank_top_k_docs(question, docs, self.reranker_top_k)
             contexts = [doc["content"] for doc in docs[:self.llm_top_k] if "content" in doc]
 
             answer = self.reader.answer(question, docs[:self.llm_top_k])
 
-            ragas_records.append({
-                "question": question,
-                "answer": answer,
-                "contexts": contexts,
-                "ground_truth": ground_truth
-            })
+            sample = SingleTurnSample(user_input=question, retrieved_contexts=contexts, response=answer, reference=reference)
+            ragas_samples.append(sample)
 
-        return Dataset.from_list(ragas_records)
+        return EvaluationDataset(samples=ragas_samples)
 
-    def run_ragas_evaluation(self, dataset: Dataset, evaluator_llm_name: str) -> EvaluationResult:
+    def run_ragas_evaluation(self, dataset: EvaluationDataset, evaluator_llm_name: str) -> EvaluationResult:
         """
         From the evaluation file provided triggers the retrieval pipeline and generates an awnswer based on the
         provided configuration. All records are merged into a python list used to create the Dataset object for the evaluation
@@ -157,7 +152,7 @@ def main(args):
     
     
     evaluator = RagasEvaluator(retriever, reader,search_top_k=search_top_k, use_reranker=use_reranker, reranker_top_k=rerank_top_k, llm_top_k=llm_top_k, search_mode=search_mode)
-    evaluator_llm = llm_factory(model="gpt-4o") # If not set gtp-4o mini used by default
+    evaluator_llm = llm_factory(model="gpt-4o") # If not set gtp-4o-mini used by default
     ragas_dataset = evaluator.create_ragas_dataset(evaluation_file_path)
     eval_results = evaluator.run_ragas_evaluation(ragas_dataset, evaluator_llm)
     print(eval_results)

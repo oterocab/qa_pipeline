@@ -23,10 +23,10 @@ def extract_unique_pmids(json_path):
 
 
 def get_missing_pmids(json_path, conn, table_name):
-    all_pmids = extract_unique_pmids(json_path)
-    existing_pmids = conn.get_existing_pmids(all_pmids, table_name)
-    missing_pmids = [pmid for pmid in all_pmids if pmid not in existing_pmids]
-    
+    json_pmids = extract_unique_pmids(json_path)
+    existing_pmids = conn.get_existing_pmids(json_pmids, table_name)
+    missing_pmids = [pmid for pmid in json_pmids if pmid not in existing_pmids]
+
     return missing_pmids
 
 
@@ -117,22 +117,24 @@ def store_documents(pmids:list, db_conn: BaseConnectionHandler, ncbi_api_key: st
                 is_test=is_test
             )
 
-def main(input_path: str, table_name: str, is_test: bool, batch_size: int) -> None:
+def main(input_path: str, is_test: bool, batch_size: int) -> None:
     config = BaseAppConfig()
+    corpus_table = config.corpus_table
     db_config = config.conn_config
     ncbi_api_key = config.ncbi_api_key
     db_conn = BasePostgreSQLConnectionHandler(db_config)
 
-    missing_pmids = get_missing_pmids(input_path, db_conn, table_name)
+    db_conn.initialize_corpus_table(corpus_table)
+    missing_pmids = get_missing_pmids(input_path, db_conn, corpus_table)
     clean_pmids = [pmid for pmid in missing_pmids if pmid.strip().isdigit()]
-    store_documents(clean_pmids, db_conn, ncbi_api_key, is_test, batch_size)
+    if clean_pmids:
+        store_documents(clean_pmids, db_conn, ncbi_api_key, is_test, batch_size)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Extract and store PubMed documents.")
     parser.add_argument("--input_path", type=str, required=True, help="Path to the input JSON file")
-    parser.add_argument("--table_name", type=str, required=True, help="Target table name in the database")
     parser.add_argument("--is_test", action="store_true", help="If the provided set of documents come from the evaluation files")
     parser.add_argument("--batch_size", type=int, default=300, help="Description of the new integer argument")
     args = parser.parse_args()
 
-    main(args.input_path, args.table_name, args.is_test, args.batch_size)
+    main(args.input_path, args.is_test, args.batch_size)

@@ -11,7 +11,7 @@ class AnthropicReader(BaseReader):
         self.prompt_template = PromptTemplate(
             input_variables=["context", "question", "system_prompt"],
             template=(
-                "{system_prompt}\n\n"
+                "System_prompt:\n{system_prompt}\n\n"
                 "Context:\n{context}\n\n"
                 "Query:\n{question}\n\n"
                 "Answer:"

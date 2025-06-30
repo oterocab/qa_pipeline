@@ -14,8 +14,8 @@ class BaseConnectionHandler:
         self.db_password = config.get("db_password")
         self.db_host = config.get("db_host")
         self.db_port = config.get("db_port")
-        self.min_pool_size = config.get("min_pool_size", 5)
-        self.max_pool_size = config.get("max_pool_size", 20)
+        self.min_pool_size = config.get("min_pool_size", 20)
+        self.max_pool_size = config.get("max_pool_size", 30)
         self.pool = None
         self.logger = logger or logging.getLogger(__name__)
 

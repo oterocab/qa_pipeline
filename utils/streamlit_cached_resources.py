@@ -22,13 +22,14 @@ def get_db_conn(conn_config: dict):
     return BasePostgreSQLConnectionHandler(conn_config)
 
 @st.cache_resource(show_spinner=False)
-def get_retriever(_db_conn, embedder_cfg: dict, reranker_cfg: dict, corpus_table: str, store_table: str, _hash_marker: str):
+def get_retriever(_db_conn, corpus_table: str, store_table: str, embedder_cfg: dict, reranker_cfg: dict, index_config: dict, _hash_marker: str):
     return BaseDocumentRetriever(
-        store_handler=_db_conn,
+        _db_conn,
+        corpus_table,
+        store_table,
         embedding_config=embedder_cfg,
-        corpus_table=corpus_table,
-        store_table=store_table,
-        reranker_config=reranker_cfg
+        reranker_config=reranker_cfg,
+        store_index_config=index_config
     )
 @st.cache_resource(show_spinner=False)
 def get_ragas_evaluator(_retriever: BaseDocumentRetriever, _reader: BaseReader, search_top_k: int, 
@@ -46,14 +47,14 @@ def get_ragas_evaluator(_retriever: BaseDocumentRetriever, _reader: BaseReader, 
 def cached_retrieve_docs( _retriever: BaseDocumentRetriever, query: str, top_k: int, rerank_top_k: int, 
                             use_reranking: bool, embedder_config: dict, reranker_config: dict):
     """Cache based on configs, not retriever instance itself."""
-    
+    rerank_latency = 0
     _ = (str(embedder_config), str(reranker_config))
     if not embedder_config:
-        docs = _retriever.get_top_k_docs_fts(query, top_k)
+        docs, db_latency = _retriever.get_top_k_docs_fts(query, top_k)
     else:
-        docs = _retriever.get_top_k_docs(query, top_k)
+        docs, db_latency = _retriever.get_top_k_docs(query, top_k)
 
     if use_reranking:
-        docs = _retriever.rerank_top_k_docs(query, docs, rerank_top_k, normalize=True)
+        docs, rerank_latency = _retriever.rerank_top_k_docs(query, docs, rerank_top_k, normalize=True)
         
-    return docs
+    return docs, db_latency, rerank_latency

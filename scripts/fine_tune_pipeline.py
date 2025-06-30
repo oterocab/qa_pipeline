@@ -48,7 +48,7 @@ def main(config_path, steps):
     if "train" in steps:   # Model fine tunning
         train_args = config["fine_tune"]
         script_name = train_args.pop("script")
-        train_cmd = ["torchrun", "--nproc_per_node", "1", "-m", script_name]
+        train_cmd = ["torchrun", "--nproc_per_node", str(config["fine_tune"].pop("num_devices")), "-m", script_name]
         for key, val in train_args.items():
             if val is None:
                 continue
