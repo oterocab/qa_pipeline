@@ -80,4 +80,7 @@ To train a model you can provide a configuration file with all the training para
 
  To use the app you need to provide in the config/retrieval_config all the required object definitions. By default the project comes with a template that can be reused for this purpose with some base, embedding, reranking, and reader models.
 
-
+to start the Streamlit App run: 
+```bash
+streamlit run app.py.
+```
