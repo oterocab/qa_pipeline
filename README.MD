@@ -1,4 +1,4 @@
-# QA Pipeline overa biomedical corpus (BioASQ dataset 2024)
+# QA Pipeline over a biomedical corpus (BioASQ dataset 2024)
 
 ## Introduction
 
