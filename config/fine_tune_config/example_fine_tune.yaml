@@ -1,0 +1,55 @@
+hn_mine:
+  embedder_name_or_path: BAAI/bge-base-en-v1.5
+  input_file: data/train/input_train_data.jsonl
+  output_file: data/train/input_train_data_minedHN_ranked.jsonl
+  negative_number: 10
+  range_for_sampling: 50-150
+  devices: cuda
+  batch_size : 8
+  use_gpu_for_searching: false
+
+score_ranking:
+  input_file: data/train/input_train_data_minedHN_ranked.jsonl
+  output_file: data/train/input_train_data_minedHN_scored.jsonl
+  reranker_name_or_path: BAAI/bge-reranker-v2-m3
+  devices: cuda:0
+  use_fp16: true
+  trust_remote_code: true
+  reranker_model_class: encoder-only-base
+  cache_dir: models/cache/model
+  reranker_batch_size: 8
+  reranker_query_max_length: 64
+  reranker_max_length: 448
+
+fine_tune:
+  script: FlagEmbedding.finetune.embedder.encoder_only.base
+  num_devices: 1
+  model_name_or_path: BAAI/bge-small-en-v1.5
+  cache_dir: cache/model
+  cache_path: cache/model/data
+  output_dir: models/fine-tuned/bge-small-en-v15
+  train_data:
+    - data/train/input_train_data_minedHN_scored.jsonl
+  train_group_size: 16
+  query_max_len: 64
+  passage_max_len: 448
+  pad_to_multiple_of: 8
+  max_example_num_per_dataset: null
+  query_instruction_for_retrieval: "Your query instruction "
+  query_instruction_format: "{}{}"
+  knowledge_distillation: true
+  overwrite_output_dir: true
+  lr_scheduler_type: cosine
+  max_grad_norm: 1
+  learning_rate: 2e-5
+  fp16: true
+  kd_loss_type: kl_div
+  num_train_epochs: 2
+  per_device_train_batch_size: 16
+  dataloader_drop_last: true
+  warmup_ratio: 0.1
+  gradient_checkpointing: true
+  temperature: 0.03
+  deepspeed: models/FlagEmbedding/ds_stage0.json
+  logging_steps: 20
+  save_steps: 100
