@@ -1,4 +1,4 @@
-# QA Pipeline over a biomedical corpus (BioASQ dataset 2024)
+# RAG pipeline over a biomedical corpus (BioASQ dataset 2024)
 
 ## Introduction
 
