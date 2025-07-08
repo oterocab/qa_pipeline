@@ -305,6 +305,39 @@ class BasePostgreSQLConnectionHandler(BaseConnectionHandler):
             self.logger.error(f"FTS Batch insert failed: {str(e)}")
             raise
     
+    def get_top_k_docs_tbl_scan(self, query_embedding: list, table_name: str, top_k: int) -> List[Dict]:
+        """
+        Retrieve the top-k most relevant documents from the specified table based on cosine similarity 
+        between the provided query embedding and the stored document embeddings
+
+        :param query_embedding: pre-calculated query embedding
+        :param table_name: target store table with the embeddings.
+        """
+        try:
+            with self.pool.connection() as connection:
+                with connection.cursor(row_factory=dict_row) as cur:
+                    start_time = time.time()
+                    embedding_query = f"""
+                    SELECT emb.pubmed_id AS id, 
+                           emb.content AS content, 
+                           emb.chunk as chunk, 
+                           1 - (embedding <=> %s::vector) as score,
+                           emb.beginoffset as beginoffset,
+                           emb.endoffset as endoffset
+                    FROM {self.db_schema}.{table_name} emb
+                    ORDER BY score DESC
+                    LIMIT %s;
+                    """
+
+                    cur.execute(embedding_query, (query_embedding, top_k))
+                    embedding_results = cur.fetchall()
+                    latency = (time.time() - start_time)
+
+                    return embedding_results, latency
+        except Exception as e:
+            self.logger.error(f"Error fetching embeddings from database: {str(e)}")
+            raise
+    
     def get_top_k_docs(self, query_embedding: list, table_name: str, top_k: int, index_config: dict= {}) -> List[Dict]:
         """
         Retrieve the top-k most relevant documents from the specified table based on cosine similarity 
@@ -326,16 +359,26 @@ class BasePostgreSQLConnectionHandler(BaseConnectionHandler):
                             raise ValueError(f"Unsupported index type: {index_config.get('name', 'Not available name')}")
                     
                     embedding_query = f"""
-                    SELECT emb.pubmed_id AS id, 
-                           emb.content AS content, 
-                           emb.chunk as chunk, 
-                           1 - (embedding <=> %s::vector) as score,
-                           emb.beginoffset as beginoffset,
-                           emb.endoffset as endoffset
-                    FROM {self.db_schema}.{table_name} emb
-                    ORDER BY score DESC
-                    LIMIT %s;
-                    """
+                                    WITH nearest AS (
+                                        SELECT  emb.pubmed_id  AS id,
+                                                emb.content,
+                                                emb.chunk,
+                                                emb.beginoffset,
+                                                emb.endoffset,
+                                                emb.embedding <=> %s::vector  AS dist
+                                        FROM    {self.db_schema}.{table_name} AS emb
+                                        ORDER BY dist                              
+                                        LIMIT   %s
+                                    )
+                                    SELECT  id,
+                                            content,
+                                            chunk,
+                                            1 - dist          AS score,
+                                            beginoffset,
+                                            endoffset
+                                    FROM    nearest
+                                    ORDER BY score DESC;
+                                    """
 
                     cur.execute(embedding_query, (query_embedding, top_k))
                     embedding_results = cur.fetchall()
@@ -345,7 +388,6 @@ class BasePostgreSQLConnectionHandler(BaseConnectionHandler):
         except Exception as e:
             self.logger.error(f"Error fetching embeddings from database: {str(e)}")
             raise
-
 
     def get_top_k_docs_fts(self, query: str, table_name: str, top_k: int) -> List[Dict]:
         """
